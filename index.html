@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Finanční hra - Cesta k pokladu (200 políček)</title>
+    <!-- Palette: Warm Pirate Amber & Gold -->
+    <style>
+        :root {
+            --primary: #d97706;
+            --primary-dark: #b45309;
+            --bg: #fef3c7;
+            --panel: #fffbe2;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #78350f;
+            color: #451a03;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 {
+            color: #fef3c7;
+            margin-bottom: 5px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            text-align: center;
+            font-size: 26px;
+        }
+
+        .subtitle {
+            color: #fde68a;
+            margin-bottom: 20px;
+            text-align: center;
+            font-style: italic;
+            font-size: 14px;
+        }
+
+        .main-container {
+            display: flex;
+            gap: 20px;
+            max-width: 1250px;
+            width: 100%;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: flex-start;
+        }
+
+        .board-wrapper {
+            position: relative;
+            width: 100%;
+            max-width: 580px;
+            aspect-ratio: 3 / 4;
+            background-image: url('deska_a3.jpg');
+            background-size: 100% 100%;
+            background-position: center;
+            background-repeat: no-repeat;
+            border-radius: 12px;
+            box-shadow: 0 15px 30px rgba(0,0,0,0.5);
+            overflow: visible;
+            border: 4px solid #fef3c7;
+            background-color: #78350f;
+        }
+
+        .board-grid {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: grid;
+            grid-template-columns: repeat(10, 1fr);
+            grid-template-rows: repeat(20, 1fr);
+            padding: 2.5% 3.5%;
+            box-sizing: border-box;
+        }
+
+        .cell-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        .cell {
+            height: 82%;
+            aspect-ratio: 1 / 1;
+            width: auto;
+            border-radius: 50%;
+            border: 1.5px solid rgba(255, 255, 255, 0.85);
+            box-shadow: inset 0 0 0 1px rgba(120, 53, 15, 0.4), 0 1px 3px rgba(0,0,0,0.4);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: 500;
+            color: #2e1000;
+            background-color: transparent;
+            text-shadow: 
+                1px  1px 0 #ffffff,
+               -1px  1px 0 #ffffff,
+                1px -1px 0 #ffffff,
+               -1px -1px 0 #ffffff,
+                0px  1px 3px rgba(0, 0, 0, 0.9);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            user-select: none;
+            text-align: center;
+            line-height: 1;
+        }
+
+        .cell:hover {
+            background-color: rgba(217, 119, 6, 0.85);
+            color: #2e1000;
+            transform: scale(1.3);
+            z-index: 10;
+            border-color: #ffffff;
+            box-shadow: 0 0 10px rgba(217, 119, 6, 0.9);
+        }
+
+        .cell.active {
+            background-color: rgba(251, 191, 36, 0.45);
+            color: #2e1000;
+            border: 1.5px solid #d97706;
+            box-shadow: inset 0 0 4px rgba(251, 191, 36, 0.5), 0 0 4px rgba(217, 119, 6, 0.4);
+            font-weight: 600;
+        }
+
+        .cell.milestone {
+            border: 2px solid #f59e0b;
+            background-color: rgba(254, 243, 199, 0.35);
+            box-shadow: 0 0 6px rgba(245, 158, 11, 0.7), inset 0 0 4px rgba(251, 191, 36, 0.5);
+            color: #2e1000;
+            font-weight: 600;
+        }
+
+        .cell.milestone.active {
+            background-color: rgba(251, 191, 36, 0.65);
+            color: #2e1000;
+            border: 2px solid #d97706;
+            box-shadow: 0 0 10px rgba(251, 191, 36, 0.9);
+        }
+
+        .cell.milestone-final {
+            border: 2.5px solid #ef4444;
+            background-color: rgba(254, 226, 226, 0.45);
+            box-shadow: 0 0 10px rgba(239, 68, 68, 0.8), inset 0 0 6px rgba(239, 68, 68, 0.4);
+            color: #2e1000;
+            font-weight: 600;
+        }
+
+        .cell.milestone-final.active {
+            background-color: rgba(239, 68, 68, 0.65);
+            color: #2e1000;
+            border: 2.5px solid #b91c1c;
+            box-shadow: 0 0 14px #dc2626;
+        }
+
+        .milestone-icon {
+            font-size: 7px;
+            margin-top: 1px;
+            line-height: 1;
+            filter: drop-shadow(0px 1px 1px rgba(0,0,0,0.5));
+        }
+
+        .pawn {
+            position: absolute;
+            font-size: 24px;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            pointer-events: none;
+            z-index: 100;
+            transform: translate(-50%, -50%);
+            filter: drop-shadow(2px 4px 5px rgba(0,0,0,0.7));
+        }
+
+        .controls-panel {
+            flex: 1;
+            min-width: 340px;
+            background: var(--panel);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .stat-card {
+            background: #fef3c7;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 5px solid var(--primary);
+        }
+
+        .stat-value {
+            font-size: 26px;
+            font-weight: bold;
+            color: #b45309;
+        }
+
+        .stash-badge {
+            background: #fff3c4;
+            border: 1px solid #d97706;
+            border-radius: 6px;
+            padding: 6px 10px;
+            font-size: 12px;
+            color: #78350f;
+            margin-top: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-weight: 600;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            margin-top: 8px;
+            font-size: 12px;
+        }
+
+        .input-group input {
+            padding: 6px 10px;
+            border: 1px solid #d97706;
+            border-radius: 4px;
+            background: #fff;
+            font-weight: bold;
+            color: #451a03;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px 12px;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+            flex: 1;
+            font-size: 13px;
+        }
+
+        button:hover {
+            background: #b45309;
+        }
+
+        button.btn-subtle {
+            background: #78350f;
+        }
+
+        button.btn-danger {
+            background: #dc2626;
+        }
+
+        .task-box {
+            background: #fff;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1.5px solid #fde68a;
+        }
+
+        .task-box h4 {
+            margin: 0 0 8px 0;
+            color: #b45309;
+            font-size: 14px;
+            border-bottom: 1px solid #fde68a;
+            padding-bottom: 4px;
+        }
+
+        .task-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 0;
+            border-bottom: 1px dashed #fef3c7;
+            font-size: 12px;
+        }
+
+        .task-item label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+        }
+
+        .rule-box {
+            font-size: 12px;
+            background: #fff;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #fde68a;
+            line-height: 1.45;
+        }
+
+        .rule-box h4 {
+            margin: 0 0 6px 0;
+            color: #8b0000;
+        }
+
+        .milestones-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 4px 10px;
+            font-size: 11px;
+            margin-top: 6px;
+        }
+
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.65);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            z-index: 200;
+        }
+
+        .modal-card {
+            background: #fffdf7;
+            border: 4px solid #b45309;
+            border-radius: 12px;
+            max-width: 500px;
+            width: 100%;
+            padding: 22px;
+            text-align: center;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+        }
+
+        .bonus-badge {
+            display: inline-block;
+            background: #15803d;
+            color: #ffffff;
+            font-size: 12px;
+            font-weight: bold;
+            padding: 4px 10px;
+            border-radius: 12px;
+            margin-top: 6px;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        @media print {
+            @page {
+                size: A3 portrait;
+                margin: 0;
+            }
+
+            html, body {
+                width: 100% !important;
+                height: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                background: #78350f !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+
+            .controls-panel, h1, .subtitle, .modal-overlay {
+                display: none !important;
+            }
+
+            .main-container {
+                max-width: 100% !important;
+                width: 100% !important;
+                height: 100vh !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+
+            .board-wrapper {
+                max-width: 100% !important;
+                width: 100vw !important;
+                height: 100vh !important;
+                border: none !important;
+                border-radius: 0 !important;
+                box-shadow: none !important;
+                background-image: url('deska_a3.jpg') !important;
+                background-size: 100% 100% !important;
+                background-position: center !important;
+                background-repeat: no-repeat !important;
+            }
+
+            .cell {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>🏴‍☠️ FINANČNÍ HRA: CESTA K POKLADU (200 POLÍČEK) 🏴‍☠️</h1>
+    <div class="subtitle">1 políčko = 100 Kč ve spoření | Vklady z kapesného a splněné úkoly zrychlují cestu k pokladu</div>
+
+    <div class="main-container">
+        <div class="board-wrapper">
+            <div id="pawn" class="pawn">🏴‍☠️</div>
+            <div class="board-grid" id="boardGrid"></div>
+        </div>
+
+        <div class="controls-panel">
+            <div class="stat-card">
+                <div>Aktuální stav spoření (Na desce):</div>
+                <div class="stat-value" id="moneyDisplay">0 Kč</div>
+                <div style="font-size: 13px; color: #78350f; font-weight: bold; margin-top: 2px;">
+                    Políčko: <span id="cellDisplay">0</span> / 200
+                </div>
+
+                <div class="stash-badge" id="stashBadge">
+                    <span>🪙 Zásoba půlžetonů: <span id="stashValue">0</span> žetonů (+<span id="stashMoney">0</span> Kč)</span>
+                    <button onclick="addParentBonus()" style="padding: 2px 6px; font-size: 10px; background: #15803d; flex: 0;">+0.5 bonus</button>
+                </div>
+
+                <div class="input-group">
+                    <label>Pirát / Kapitán:</label>
+                    <input type="text" id="captainInput" value="Malý Pirát" onchange="saveGameState()">
+                </div>
+                <div class="input-group">
+                    <label>Cílový hlavní poklad (200. políčko / 20 000 Kč):</label>
+                    <input type="text" id="goalInput" value="Pirátská loď & Poklad" onchange="saveGameState()">
+                </div>
+            </div>
+
+            <div class="btn-group">
+                <button onclick="stepPawn(1)">+ 100 Kč (+1 pole)</button>
+                <button onclick="stepPawn(-1)">- 100 Kč</button>
+            </div>
+            <div class="btn-group">
+                <button onclick="stepPawn(10)" style="background: #b45309;">+ 1 000 Kč (+10 polí)</button>
+                <button onclick="stepPawn(20)" style="background: #ca8a04;">+ 2 000 Kč (+20 k Truhle)</button>
+            </div>
+
+            <div class="task-box">
+                <h4>📅 Týdenní palubní deník (Kalkulačka žetonů):</h4>
+                <div class="task-item">
+                    <label>
+                        <input type="checkbox" id="taskSport"> 🚲 Pohyb a sport (min. 3× v týdnu)
+                    </label>
+                    <span>+0.5 žetonu</span>
+                </div>
+                <div class="task-item">
+                    <label>
+                        <input type="checkbox" id="taskVeggie"> 🥦 Ochutnávka zeleniny (min. 3×)
+                    </label>
+                    <span>+0.5 žetonu</span>
+                </div>
+                <div class="task-item">
+                    <label>
+                        <input type="checkbox" id="taskHelp"> 🧹 Pomocník na lodi (úklid hraček)
+                    </label>
+                    <span>+1.0 žeton</span>
+                </div>
+                <div class="task-item">
+                    <label>
+                        <input type="checkbox" id="taskGrit"> ⚔️ Vytrvalost (odolání pokušení)
+                    </label>
+                    <span>+1.0 žeton</span>
+                </div>
+                <div class="task-item" style="background: #fef08a; padding: 6px 8px; border-radius: 4px; margin-top: 6px; margin-left: -8px; margin-right: -8px;">
+                    <label>
+                        <input type="checkbox" id="taskAllowance" checked> 💰 <b>Vklad týdenního kapesného (50 Kč)</b>
+                    </label>
+                    <span style="font-size: 11px; font-weight: bold; color: #2e6b27;">+0.5 žetonu</span>
+                </div>
+                <button onclick="applyWeeklyTasks()" style="margin-top: 10px; width: 100%; background: #2e6b27;">
+                    ⚓ Započítat týden a posunout figurku ▶
+                </button>
+            </div>
+
+            <div class="rule-box">
+                <h4>💡 Jak naložit s 0.5 žetonu (50 Kč)?</h4>
+                <p>• <b>Uložit na příště (Automaticky):</b> Půlžeton se bezpečně uloží do banku zásoby. V dalším týdnu se po získání dalšího půlžetonu spojí do celého 1 pole!</p>
+                <p>• <b>Rodičovský doplatek:</b> Za splnění drobné výzvy mohou rodiče doplnit půlžeton na 1 celé pole ještě v neděli.</p>
+            </div>
+
+            <div class="btn-group">
+                <button onclick="window.print()" class="btn-subtle">🖨️ Vytisknout desku na A3</button>
+                <button onclick="resetGame()" class="btn-danger">Vynulovat</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL CHEST -->
+    <div id="chestModal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <div style="font-size: 44px; margin-bottom: 8px;">🎁</div>
+            <h3 id="modalTitle" style="color: #b45309; margin: 0 0 8px 0; font-size: 20px;">Truhla Voleb!</h3>
+            <p id="modalBody" style="font-size: 13.5px; color: #451a03; line-height: 1.5; margin-bottom: 12px;">
+                Dosáhl jsi milníku na mapě pokladu!
+            </p>
+            <div style="margin-bottom: 16px;">
+                <span class="bonus-badge" id="modalBonusBadge">⚡ RODIČOVSKÝ BONUS: PŘEVOD HODNOTY ODMĚNY DO POKLADU ⚡</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                <button id="btnTakeReward" onclick="closeModal(true)" style="background: #ca8a04; padding: 12px; border-radius: 8px; color: white; font-weight: bold;">
+                    🍦 Vybrat si menší odměnu hned (kino / zážitek / hračka)
+                </button>
+                <button id="btnRefuseReward" onclick="closeModal(false)" style="background: #15803d; padding: 12px; border-radius: 8px; color: white; font-weight: bold;">
+                    ⚔️ Odolat pokušení & Převeďte odměnu do pokladu! ▶
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentCell = 0;
+        const totalCells = 200;
+        let activeMilestoneCell = 0;
+        let carriedTokens = 0; // Evidence půlžetonu z minulých týdnů
+
+        function saveGameState() {
+            try {
+                localStorage.setItem('pirate_currentCell', currentCell);
+                localStorage.setItem('pirate_carriedTokens', carriedTokens);
+                const captain = document.getElementById('captainInput')?.value;
+                const goal = document.getElementById('goalInput')?.value;
+                if (captain) localStorage.setItem('pirate_captain', captain);
+                if (goal) localStorage.setItem('pirate_goal', goal);
+            } catch (e) {
+                console.warn('LocalStorage nepodporováno nebo zablokováno:', e);
+            }
+        }
+
+        function loadGameState() {
+            try {
+                const savedCell = localStorage.getItem('pirate_currentCell');
+                const savedTokens = localStorage.getItem('pirate_carriedTokens');
+                const savedCaptain = localStorage.getItem('pirate_captain');
+                const savedGoal = localStorage.getItem('pirate_goal');
+
+                if (savedCell !== null) currentCell = parseInt(savedCell, 10) || 0;
+                if (savedTokens !== null) carriedTokens = parseFloat(savedTokens) || 0;
+                if (savedCaptain && document.getElementById('captainInput')) document.getElementById('captainInput').value = savedCaptain;
+                if (savedGoal && document.getElementById('goalInput')) document.getElementById('goalInput').value = savedGoal;
+            } catch (e) {
+                console.warn('LocalStorage load failed:', e);
+            }
+        }
+
+        const gridContainer = document.getElementById('boardGrid');
+        const pawn = document.getElementById('pawn');
+        const moneyDisplay = document.getElementById('moneyDisplay');
+        const cellDisplay = document.getElementById('cellDisplay');
+        const stashValue = document.getElementById('stashValue');
+        const stashMoney = document.getElementById('stashMoney');
+
+        function getParentalBonusSteps(cellNum) {
+            if (cellNum <= 60) return 3;
+            if (cellNum <= 120) return 4;
+            return 5;
+        }
+
+        function generateGrid() {
+            gridContainer.innerHTML = '';
+            const cellsMap = {};
+
+            for (let rowIndex = 0; rowIndex < 20; rowIndex++) {
+                const rowFromBottom = 19 - rowIndex; 
+                const isEvenRowFromBottom = rowFromBottom % 2 === 0;
+
+                for (let colIndex = 0; colIndex < 10; colIndex++) {
+                    const colFromLeft = isEvenRowFromBottom ? colIndex : (9 - colIndex);
+                    const cellIndex = (rowFromBottom * 10) + colFromLeft + 1;
+
+                    const cellContainer = document.createElement('div');
+                    cellContainer.className = 'cell-container';
+
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.id = `cell-${cellIndex}`;
+
+                    if (cellIndex % 20 === 0 && cellIndex < 200) {
+                        cell.classList.add('milestone');
+                        cell.setAttribute('title', `Truhla voleb na ${cellIndex}. políčku`);
+                        cell.innerHTML = `<span>${cellIndex}</span><span class="milestone-icon">🎁</span>`;
+                    } else if (cellIndex === 200) {
+                        cell.classList.add('milestone-final');
+                        cell.setAttribute('title', 'Cílový poklad (200. políčko)');
+                        cell.innerHTML = `<span>${cellIndex}</span><span class="milestone-icon">🏆</span>`;
+                    } else {
+                        cell.innerText = cellIndex;
+                    }
+
+                    cell.onclick = () => setCell(cellIndex);
+                    cellContainer.appendChild(cell);
+                    
+                    const gridPos = rowIndex * 10 + colIndex;
+                    cellsMap[gridPos] = cellContainer;
+                }
+            }
+
+            for (let i = 0; i < 200; i++) {
+                gridContainer.appendChild(cellsMap[i]);
+            }
+
+            updatePawnPosition();
+        }
+
+        function setCell(index, triggerMilestoneCheck = true) {
+            if (index < 0) index = 0;
+            if (index > totalCells) index = totalCells;
+
+            const prevCell = currentCell;
+            currentCell = index;
+            saveGameState();
+            updateUI();
+
+            if (triggerMilestoneCheck && currentCell > prevCell) {
+                for (let m = 20; m <= 200; m += 20) {
+                    if (prevCell < m && currentCell >= m) {
+                        openChestModal(m);
+                        break;
+                    }
+                }
+            }
+        }
+
+        function stepPawn(steps, triggerMilestoneCheck = true) {
+            setCell(currentCell + steps, triggerMilestoneCheck);
+        }
+
+        function addParentBonus() {
+            if (carriedTokens > 0) {
+                carriedTokens = 0;
+                stepPawn(1);
+                alert("🎁 Rodičovský bonus udělen! Půlžeton ze zásoby byl doplněn na celé 1 pole (+100 Kč)!");
+            } else {
+                carriedTokens = 0.5;
+                updateStashUI();
+                alert("🪙 Přidáno +0.5 žetonu (50 Kč) do zásoby na příště!");
+            }
+        }
+
+        function applyWeeklyTasks() {
+            let weeklyTokens = 0;
+            if (document.getElementById('taskSport').checked) weeklyTokens += 0.5;
+            if (document.getElementById('taskVeggie').checked) weeklyTokens += 0.5;
+            if (document.getElementById('taskHelp').checked) weeklyTokens += 1.0;
+            if (document.getElementById('taskGrit').checked) weeklyTokens += 1.0;
+            if (document.getElementById('taskAllowance').checked) weeklyTokens += 0.5;
+
+            if (weeklyTokens === 0) {
+                alert("Vyberte alespoň jeden splněný úkol nebo vklad kapesného.");
+                return;
+            }
+
+            const totalAvailable = weeklyTokens + carriedTokens;
+            const fullSteps = Math.floor(totalAvailable);
+            const remainder = totalAvailable - fullSteps;
+
+            carriedTokens = remainder;
+
+            if (fullSteps > 0) {
+                stepPawn(fullSteps);
+            }
+
+            // Odškrtnutí
+            document.getElementById('taskSport').checked = false;
+            document.getElementById('taskVeggie').checked = false;
+            document.getElementById('taskHelp').checked = false;
+            document.getElementById('taskGrit').checked = false;
+            document.getElementById('taskAllowance').checked = true;
+
+            updateStashUI();
+
+            let message = `Týden uzavřen!\n\nZískat z úkolů: ${weeklyTokens} žetonu.\nCelkem k dispozici: ${totalAvailable} žetonu.\n\n`;
+            if (fullSteps > 0) {
+                message += `🚀 Figurka se posunula o +${fullSteps} pole (+${fullSteps * 100} Kč)!\n`;
+            } else {
+                message += `ℹ️ Získaný půlžeton nestačí na celé pole na desce.\n`;
+            }
+
+            if (remainder > 0) {
+                message += `🪙 Zbylý 0.5 žetonu (50 Kč) byl uložen do zásoby na příští týden!`;
+            } else {
+                message += `✨ Všechny žetony byly plně využity!`;
+            }
+
+            alert(message);
+        }
+
+        function updateStashUI() {
+            stashValue.innerText = carriedTokens;
+            stashMoney.innerText = (carriedTokens * 100);
+            saveGameState();
+        }
+
+        function openChestModal(cellNum) {
+            activeMilestoneCell = cellNum;
+            const goal = document.getElementById('goalInput').value;
+            const savedAmount = cellNum * 100;
+            const bonusSteps = getParentalBonusSteps(cellNum);
+            const bonusMoney = bonusSteps * 100;
+
+            document.getElementById('modalTitle').innerText = `🎁 Truhla Voleb na ${cellNum}. políčku! (${savedAmount.toLocaleString('cs-CZ')} Kč)`;
+            
+            if (cellNum === 200) {
+                document.getElementById('modalTitle').innerText = `🏆 VELKÝ FINÁLOVÝ POKLAD! (20 000 Kč)`;
+                document.getElementById('modalBody').innerText = `GRATULUJEME! Dosáhl jsi 200. políčka a získal jsi svůj cílový poklad: ${goal}!`;
+                document.getElementById('btnRefuseReward').style.display = 'none';
+                document.getElementById('btnTakeReward').innerText = '🎉 Oslavit a vyzvednout Velký Poklad!';
+                document.getElementById('modalBonusBadge').innerText = '🏆 CÍL JE DOSAŽEN!';
+            } else {
+                document.getElementById('btnRefuseReward').style.display = 'block';
+                document.getElementById('btnTakeReward').innerText = '🍦 Vybrat si menší odměnu hned (kino / zážitek / hračka)';
+                document.getElementById('btnRefuseReward').innerText = `⚔️ Odolat pokušení (+${bonusSteps} políčka / +${bonusMoney} Kč vklad rodičů do pokladu!) ▶`;
+                document.getElementById('modalBonusBadge').innerText = `⚡ RODIČOVSKÁ INJEKCE: +${bonusSteps} POLÍČKA (+${bonusMoney} Kč) PŘI ODOLÁNÍ ⚡`;
+                
+                document.getElementById('modalBody').innerText = `Skvělá práce! Dosáhl jsi ${cellNum}. políčka. Nyní si můžeš vybrat okamžitou odměnu, NEBO odolat pokušení a nechat rodiče vložit hodnotu odměny (+${bonusMoney} Kč / +${bonusSteps} políčka) přímo do tvého spoření k hlavnímu cíli (${goal})!`;
+            }
+
+            document.getElementById('chestModal').classList.remove('hidden');
+        }
+
+        function closeModal(tookReward) {
+            document.getElementById('chestModal').classList.add('hidden');
+            if (tookReward) {
+                alert("Užij si svou vybranou okamžitou odměnu na tomto milníku!");
+            } else {
+                const bonusSteps = getParentalBonusSteps(activeMilestoneCell);
+                const bonusMoney = bonusSteps * 100;
+
+                if (currentCell < totalCells) {
+                    stepPawn(bonusSteps, false);
+                    alert(`⚔️ ODVAHA A SEBEOVLÁDÁNÍ SE VYPLÁCÍ!\n\nOdmítnutím okamžité odměny vkládají rodiče přímo do tvého spoření dotační vklad +${bonusMoney} Kč (+${bonusSteps} políček navíc)! 🚀\n\nJsi o obří skok blíže k velkému pokladu!`);
+                }
+            }
+        }
+
+        function updateUI() {
+            cellDisplay.innerText = currentCell;
+            moneyDisplay.innerText = (currentCell * 100).toLocaleString('cs-CZ') + ' Kč';
+
+            document.querySelectorAll('.cell').forEach((cell) => {
+                const textSpan = cell.querySelector('span');
+                const cellNum = textSpan ? parseInt(textSpan.innerText) : parseInt(cell.innerText);
+                if (cellNum <= currentCell && currentCell > 0) {
+                    cell.classList.add('active');
+                } else {
+                    cell.classList.remove('active');
+                }
+            });
+
+            updatePawnPosition();
+            updateStashUI();
+        }
+
+        function updatePawnPosition() {
+            if (currentCell === 0) {
+                pawn.style.left = '-3.5%';
+                pawn.style.top = '97.5%';
+                return;
+            }
+
+            const targetCell = document.getElementById(`cell-${currentCell}`);
+            if (targetCell) {
+                const rect = targetCell.getBoundingClientRect();
+                const wrapperRect = gridContainer.getBoundingClientRect();
+
+                const x = rect.left + rect.width / 2 - wrapperRect.left;
+                const y = rect.top + rect.height / 2 - wrapperRect.top;
+
+                pawn.style.left = `${(x / wrapperRect.width) * 100}%`;
+                pawn.style.top = `${(y / wrapperRect.height) * 100}%`;
+            }
+        }
+
+        function resetGame() {
+            if (confirm('Opravdu chcete vynulovat postup ve hře?')) {
+                carriedTokens = 0;
+                try {
+                    localStorage.removeItem('pirate_currentCell');
+                    localStorage.removeItem('pirate_carriedTokens');
+                } catch (e) {}
+                setCell(0);
+            }
+        }
+
+        window.onresize = updatePawnPosition;
+        loadGameState();
+        generateGrid();
+    </script>
+</body>
+</html>
