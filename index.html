@@ -316,14 +316,6 @@
             color: #8b0000;
         }
 
-        .milestones-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 4px 10px;
-            font-size: 11px;
-            margin-top: 6px;
-        }
-
         .modal-overlay {
             position: fixed;
             inset: 0;
@@ -429,8 +421,7 @@
                 </div>
 
                 <div class="stash-badge" id="stashBadge">
-                    <span>🪙 Zásoba půlžetonů: <span id="stashValue">0</span> žetonů (+<span id="stashMoney">0</span> Kč)</span>
-                    <button onclick="addParentBonus()" style="padding: 2px 6px; font-size: 10px; background: #15803d; flex: 0;">+0.5 bonus</button>
+                    <span>🪙 Zásoba z minulého týdne: <span id="stashValue">0</span> žetonů (+<span id="stashMoney">0</span> Kč)</span>
                 </div>
 
                 <div class="input-group">
@@ -456,43 +447,58 @@
                 <h4>📅 Týdenní palubní deník (Kalkulačka žetonů):</h4>
                 <div class="task-item">
                     <label>
-                        <input type="checkbox" id="taskSport"> 🚲 Pohyb a sport (min. 3× v týdnu)
+                        <input type="checkbox" id="taskSport" onchange="updateLiveTaskSummary()"> 🚲 Pohyb a sport (min. 3× v týdnu)
                     </label>
                     <span>+0.5 žetonu</span>
                 </div>
                 <div class="task-item">
                     <label>
-                        <input type="checkbox" id="taskVeggie"> 🥦 Ochutnávka zeleniny (min. 3×)
+                        <input type="checkbox" id="taskVeggie" onchange="updateLiveTaskSummary()"> 🥦 Ochutnávka zeleniny (min. 3×)
                     </label>
                     <span>+0.5 žetonu</span>
                 </div>
                 <div class="task-item">
                     <label>
-                        <input type="checkbox" id="taskHelp"> 🧹 Pomocník na lodi (úklid hraček)
+                        <input type="checkbox" id="taskHelp" onchange="updateLiveTaskSummary()"> 🧹 Pomocník na lodi (úklid hraček)
                     </label>
                     <span>+1.0 žeton</span>
                 </div>
                 <div class="task-item">
                     <label>
-                        <input type="checkbox" id="taskGrit"> ⚔️ Vytrvalost (odolání pokušení)
+                        <input type="checkbox" id="taskGrit" onchange="updateLiveTaskSummary()"> ⚔️ Vytrvalost (odolání pokušení)
                     </label>
                     <span>+1.0 žeton</span>
                 </div>
                 <div class="task-item" style="background: #fef08a; padding: 6px 8px; border-radius: 4px; margin-top: 6px; margin-left: -8px; margin-right: -8px;">
                     <label>
-                        <input type="checkbox" id="taskAllowance" checked> 💰 <b>Vklad týdenního kapesného (50 Kč)</b>
+                        <input type="checkbox" id="taskAllowance" checked onchange="updateLiveTaskSummary()"> 💰 <b>Vklad týdenního kapesného (50 Kč)</b>
                     </label>
                     <span style="font-size: 11px; font-weight: bold; color: #2e6b27;">+0.5 žetonu</span>
                 </div>
+                <div class="task-item" style="background: #f0fdf4; padding: 6px 8px; border-radius: 4px; margin-top: 4px; margin-left: -8px; margin-right: -8px; border: 1px dashed #16a34a;">
+                    <label>
+                        <input type="checkbox" id="taskJoker" onchange="updateLiveTaskSummary()"> 🃏 <b>Rodičovský žolík (mimořádná snaha / výzva)</b>
+                    </label>
+                    <span style="font-size: 11px; font-weight: bold; color: #15803d;">+0.5 žetonu</span>
+                </div>
+
+                <div id="liveSummaryBox" style="margin-top: 10px; padding: 8px 10px; background: #fef3c7; border: 1.5px solid #d97706; border-radius: 6px; font-size: 12px; color: #78350f;">
+                    <div>🧮 <b>Tento týden vybráno:</b> <span id="weeklySumDisplay" style="font-weight: bold; color: #b45309;">0.5</span> žetonů</div>
+                    <div>🪙 <b>Celkem se zásobou:</b> <span id="totalSumDisplay" style="font-weight: bold; color: #b45309;">0.5</span> žetonů</div>
+                    <div style="margin-top: 4px; padding-top: 4px; border-top: 1px dashed #fde68a; font-weight: bold; color: #2e6b27;" id="resultPreviewDisplay">
+                        ➔ Posun o +0 polí (+0 Kč)
+                    </div>
+                </div>
+
                 <button onclick="applyWeeklyTasks()" style="margin-top: 10px; width: 100%; background: #2e6b27;">
                     ⚓ Započítat týden a posunout figurku ▶
                 </button>
             </div>
 
             <div class="rule-box">
-                <h4>💡 Jak naložit s 0.5 žetonu (50 Kč)?</h4>
-                <p>• <b>Uložit na příště (Automaticky):</b> Půlžeton se bezpečně uloží do banku zásoby. V dalším týdnu se po získání dalšího půlžetonu spojí do celého 1 pole!</p>
-                <p>• <b>Rodičovský doplatek:</b> Za splnění drobné výzvy mohou rodiče doplnit půlžeton na 1 celé pole ještě v neděli.</p>
+                <h4>💡 Jak funguje půlžeton (50 Kč)?</h4>
+                <p>• <b>Automatické přesouvání:</b> Pokud celkový součet týdenních žetonů skončí na polovině (např. 1.5 žetonu), figurka se posune o 1 celé pole (+100 Kč) a zbylý 0.5 žetonu se automaticky uloží do zásoby na příští týden!</p>
+                <p>• <b>🃏 Rodičovský žolík:</b> Nachází se v deníku přímo pod kapesným. Pokud pirát splnil nějaký mimořádný úkol navíc, mohou rodiče políčko zaškrtnout a přidat +0.5 žetonu ihned do týdenního součtu.</p>
             </div>
 
             <div class="btn-group">
@@ -641,25 +647,8 @@
             setCell(currentCell + steps, triggerMilestoneCheck);
         }
 
-        function addParentBonus() {
-            if (carriedTokens > 0) {
-                carriedTokens = 0;
-                stepPawn(1);
-                alert("🎁 Rodičovský bonus udělen! Půlžeton ze zásoby byl doplněn na celé 1 pole (+100 Kč)!");
-            } else {
-                carriedTokens = 0.5;
-                updateStashUI();
-                alert("🪙 Přidáno +0.5 žetonu (50 Kč) do zásoby na příště!");
-            }
-        }
-
         function applyWeeklyTasks() {
-            let weeklyTokens = 0;
-            if (document.getElementById('taskSport').checked) weeklyTokens += 0.5;
-            if (document.getElementById('taskVeggie').checked) weeklyTokens += 0.5;
-            if (document.getElementById('taskHelp').checked) weeklyTokens += 1.0;
-            if (document.getElementById('taskGrit').checked) weeklyTokens += 1.0;
-            if (document.getElementById('taskAllowance').checked) weeklyTokens += 0.5;
+            let weeklyTokens = getSelectedWeeklyTokens();
 
             if (weeklyTokens === 0) {
                 alert("Vyberte alespoň jeden splněný úkol nebo vklad kapesného.");
@@ -682,6 +671,7 @@
             document.getElementById('taskHelp').checked = false;
             document.getElementById('taskGrit').checked = false;
             document.getElementById('taskAllowance').checked = true;
+            document.getElementById('taskJoker').checked = false;
 
             updateStashUI();
 
@@ -705,6 +695,40 @@
             stashValue.innerText = carriedTokens;
             stashMoney.innerText = (carriedTokens * 100);
             saveGameState();
+            updateLiveTaskSummary();
+        }
+
+        function getSelectedWeeklyTokens() {
+            let weeklyTokens = 0;
+            if (document.getElementById('taskSport')?.checked) weeklyTokens += 0.5;
+            if (document.getElementById('taskVeggie')?.checked) weeklyTokens += 0.5;
+            if (document.getElementById('taskHelp')?.checked) weeklyTokens += 1.0;
+            if (document.getElementById('taskGrit')?.checked) weeklyTokens += 1.0;
+            if (document.getElementById('taskAllowance')?.checked) weeklyTokens += 0.5;
+            if (document.getElementById('taskJoker')?.checked) weeklyTokens += 0.5;
+            return weeklyTokens;
+        }
+
+        function updateLiveTaskSummary() {
+            const weekly = getSelectedWeeklyTokens();
+            const total = weekly + carriedTokens;
+            const fullSteps = Math.floor(total);
+            const remainder = total - fullSteps;
+
+            const weeklyEl = document.getElementById('weeklySumDisplay');
+            const totalEl = document.getElementById('totalSumDisplay');
+            const resultEl = document.getElementById('resultPreviewDisplay');
+
+            if (weeklyEl) weeklyEl.innerText = weekly;
+            if (totalEl) totalEl.innerText = total;
+
+            if (resultEl) {
+                let msg = `➔ Posun o +${fullSteps} pole (+${fullSteps * 100} Kč)`;
+                if (remainder > 0) {
+                    msg += ` & ${remainder} žetonu v zásobě`;
+                }
+                resultEl.innerText = msg;
+            }
         }
 
         function openChestModal(cellNum) {
@@ -801,6 +825,7 @@
         window.onresize = updatePawnPosition;
         loadGameState();
         generateGrid();
+        updateLiveTaskSummary();
     </script>
 </body>
 </html>
