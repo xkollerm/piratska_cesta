@@ -13,7 +13,6 @@ https://\<vase-uzivatelske-jmeno\>.github.io/\<nazev-repozitare\>/ *(doplňte va
 * **Týdenní palubní deník:** Dítě získává žetony za plnění návyků (pohyb, zelenina, úklid, vytrvalost) a vklad kapesného.  
 * **🃏 Rodičovský žolík (+0,5 žetonu):** Možnost udělit bonusový půlžeton za mimořádnou snahu nebo výzvu.  
 * **🎁 Truhly voleb (každé 20\. políčko):** Trénink odložené spotřeby. Dítě si volí mezi okamžitou menší odměnou (kino, zmrzlina) nebo přenesením hodnoty do pokladu s dotačním bonusovým skokem od rodičů\!  
-* **Dvě peněženky:** Jisté týdenní kapesné (50 Kč) na okamžité utrácení je oddělené od dlouhodobého spoření na desce.
 
 ## **📁 Obsah repozitáře**
 
