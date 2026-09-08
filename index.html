@@ -338,6 +338,67 @@
             box-shadow: 0 20px 40px rgba(0,0,0,0.5);
         }
 
+        #confettiCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 9999;
+        }
+
+        .history-list {
+            max-height: 180px;
+            overflow-y: auto;
+            border: 1px solid #fde68a;
+            border-radius: 6px;
+            background: #ffffff;
+            padding: 6px;
+            font-size: 11px;
+        }
+
+        .history-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 6px;
+            border-bottom: 1px dashed #fef3c7;
+        }
+
+        .history-item:last-child {
+            border-bottom: none;
+        }
+
+        .prediction-card {
+            background: #f0fdf4;
+            border: 1.5px solid #16a34a;
+            border-radius: 8px;
+            padding: 10px;
+            margin-top: 10px;
+            font-size: 12px;
+            color: #14532d;
+            line-height: 1.4;
+        }
+
+        .backup-btn-group {
+            display: flex;
+            gap: 6px;
+            margin-top: 8px;
+        }
+
+        .btn-secondary {
+            background: #4b5563;
+        }
+        .btn-secondary:hover {
+            background: #374151;
+        }
+        .btn-accent {
+            background: #0284c7;
+        }
+        .btn-accent:hover {
+            background: #0369a1;
+        }
+
         .bonus-badge {
             display: inline-block;
             background: #15803d;
@@ -406,9 +467,11 @@
     <h1>🏴‍☠️ FINANČNÍ HRA: CESTA K POKLADU (200 POLÍČEK) 🏴‍☠️</h1>
     <div class="subtitle">1 políčko = 100 Kč ve spoření | Vklady z kapesného a splněné úkoly zrychlují cestu k pokladu</div>
 
+    <canvas id="confettiCanvas"></canvas>
+
     <div class="main-container">
         <div class="board-wrapper">
-            <div id="pawn" class="pawn">🏴‍☠️</div>
+            <div id="pawn" class="pawn">⛵</div>
             <div class="board-grid" id="boardGrid"></div>
         </div>
 
@@ -422,6 +485,10 @@
 
                 <div class="stash-badge" id="stashBadge">
                     <span>🪙 Zásoba z minulého týdne: <span id="stashValue">0</span> žetonů (+<span id="stashMoney">0</span> Kč)</span>
+                </div>
+
+                <div id="predictionBox" class="prediction-card">
+                    📊 <b>Předpověď plavby:</b> <span id="predictionText">Zatím málo dat (započítejte alespoň 1 týden)</span>
                 </div>
 
                 <div class="input-group">
@@ -501,6 +568,28 @@
                 <p>• <b>🃏 Rodičovský žolík:</b> Nachází se v deníku přímo pod kapesným. Pokud pirát splnil nějaký mimořádný úkol navíc, mohou rodiče políčko zaškrtnout a přidat +0.5 žetonu ihned do týdenního součtu.</p>
             </div>
 
+            <div class="task-box">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                    <h4 style="margin:0;">📜 Historie týdenních vkladů</h4>
+                    <span id="historyCount" style="font-size: 11px; color: #b45309; font-weight: bold;">(0 záznamů)</span>
+                </div>
+                <div class="history-list" id="historyList">
+                    <div style="color: #888; text-align: center; padding: 10px;">Zatím nebyly započítány žádné týdny.</div>
+                </div>
+            </div>
+
+            <div class="task-box" style="background: #f0f9ff; border-color: #bae6fd;">
+                <h4 style="color: #0369a1; border-color: #bae6fd;">💾 Záloha & Přenos dat hry</h4>
+                <div style="font-size: 11px; color: #0369a1;">
+                    Uložte si záložní soubor před aktualizací nebo přeneste postup mezi mobilními zařízením.
+                </div>
+                <div class="backup-btn-group">
+                    <button onclick="exportGameState()" class="btn-accent">📥 Stáhnout zálohu (JSON)</button>
+                    <button onclick="document.getElementById('importFileInput').click()" class="btn-secondary">📤 Načíst ze souboru</button>
+                    <input type="file" id="importFileInput" accept=".json" onchange="importGameState(event)" style="display:none">
+                </div>
+            </div>
+
             <div class="btn-group">
                 <button onclick="window.print()" class="btn-subtle">🖨️ Vytisknout desku na A3</button>
                 <button onclick="resetGame()" class="btn-danger">Vynulovat</button>
@@ -535,11 +624,138 @@
         const totalCells = 200;
         let activeMilestoneCell = 0;
         let carriedTokens = 0; // Evidence půlžetonu z minulých týdnů
+        let historyLog = []; // Historie týdenních záznamů
+
+        // --- WEB AUDIO SYNTHESIZER FOR SOUND EFFECTS ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        function playCoinSound() {
+            try {
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                const now = audioCtx.currentTime;
+
+                // Dvojité kovové cinknutí (cl-ink) pro věrný zvuk zlaté mince
+                const createCoinPing = (delay, freq1, freq2, duration) => {
+                    [freq1, freq2].forEach((freq) => {
+                        const osc = audioCtx.createOscillator();
+                        const gain = audioCtx.createGain();
+                        
+                        osc.type = 'sine';
+                        osc.frequency.setValueAtTime(freq, now + delay);
+                        
+                        // Rychlý kovový náraz a přirozený dozvuk
+                        gain.gain.setValueAtTime(0.18, now + delay);
+                        gain.gain.exponentialRampToValueAtTime(0.001, now + delay + duration);
+                        
+                        osc.connect(gain);
+                        gain.connect(audioCtx.destination);
+                        
+                        osc.start(now + delay);
+                        osc.stop(now + delay + duration);
+                    });
+                };
+
+                // První náraz mince
+                createCoinPing(0, 2400, 4800, 0.12);
+                // Druhé rezonující cinknutí o 35 ms později
+                createCoinPing(0.035, 3200, 6400, 0.22);
+            } catch (e) {}
+        }
+
+        function playChestSound() {
+            try {
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                const now = audioCtx.currentTime;
+                [523.25, 659.25, 783.99, 1046.50].forEach((freq, idx) => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(freq, now + idx * 0.08);
+                    gain.gain.setValueAtTime(0.2, now + idx * 0.08);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + idx * 0.08 + 0.25);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start(now + idx * 0.08);
+                    osc.stop(now + idx * 0.08 + 0.25);
+                });
+            } catch (e) {}
+        }
+
+        function playVictorySound() {
+            try {
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                const now = audioCtx.currentTime;
+                const notes = [523.25, 659.25, 783.99, 1046.50, 1318.51];
+                notes.forEach((freq, idx) => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(freq, now + idx * 0.1);
+                    gain.gain.setValueAtTime(0.15, now + idx * 0.1);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + idx * 0.1 + 0.35);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start(now + idx * 0.1);
+                    osc.stop(now + idx * 0.1 + 0.35);
+                });
+            } catch (e) {}
+        }
+
+        function triggerConfetti() {
+            const canvas = document.getElementById('confettiCanvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+
+            const particles = [];
+            const colors = ['#f59e0b', '#d97706', '#10b981', '#3b82f6', '#ec4899', '#8b5cf6'];
+
+            for (let i = 0; i < 100; i++) {
+                particles.push({
+                    x: canvas.width / 2,
+                    y: canvas.height / 2,
+                    vx: (Math.random() - 0.5) * 14,
+                    vy: (Math.random() - 0.7) * 14,
+                    size: Math.random() * 8 + 4,
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                    gravity: 0.2,
+                    life: 1,
+                    decay: Math.random() * 0.015 + 0.01
+                });
+            }
+
+            function render() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                let alive = false;
+
+                particles.forEach(p => {
+                    if (p.life > 0) {
+                        alive = true;
+                        p.x += p.vx;
+                        p.y += p.vy;
+                        p.vy += p.gravity;
+                        p.life -= p.decay;
+                        ctx.globalAlpha = Math.max(0, p.life);
+                        ctx.fillStyle = p.color;
+                        ctx.fillRect(p.x, p.y, p.size, p.size);
+                    }
+                });
+
+                if (alive) {
+                    requestAnimationFrame(render);
+                } else {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                }
+            }
+            render();
+        }
 
         function saveGameState() {
             try {
                 localStorage.setItem('pirate_currentCell', currentCell);
                 localStorage.setItem('pirate_carriedTokens', carriedTokens);
+                localStorage.setItem('pirate_historyLog', JSON.stringify(historyLog));
                 const captain = document.getElementById('captainInput')?.value;
                 const goal = document.getElementById('goalInput')?.value;
                 if (captain) localStorage.setItem('pirate_captain', captain);
@@ -553,16 +769,161 @@
             try {
                 const savedCell = localStorage.getItem('pirate_currentCell');
                 const savedTokens = localStorage.getItem('pirate_carriedTokens');
+                const savedHistory = localStorage.getItem('pirate_historyLog');
                 const savedCaptain = localStorage.getItem('pirate_captain');
                 const savedGoal = localStorage.getItem('pirate_goal');
 
                 if (savedCell !== null) currentCell = parseInt(savedCell, 10) || 0;
                 if (savedTokens !== null) carriedTokens = parseFloat(savedTokens) || 0;
+                if (savedHistory) historyLog = JSON.parse(savedHistory) || [];
                 if (savedCaptain && document.getElementById('captainInput')) document.getElementById('captainInput').value = savedCaptain;
                 if (savedGoal && document.getElementById('goalInput')) document.getElementById('goalInput').value = savedGoal;
             } catch (e) {
                 console.warn('LocalStorage load failed:', e);
             }
+        }
+
+        // --- EXPORT & IMPORT DATA (JSON) ---
+        async function exportGameState() {
+            saveGameState();
+            const data = {
+                version: "2.0",
+                exportDate: new Date().toISOString(),
+                currentCell: currentCell,
+                carriedTokens: carriedTokens,
+                historyLog: historyLog,
+                captain: document.getElementById('captainInput')?.value || "Malý Pirát",
+                goal: document.getElementById('goalInput')?.value || "Pirátská loď & Poklad"
+            };
+
+            const jsonStr = JSON.stringify(data, null, 2);
+            const fileName = `pirate_game_zaloha_${new Date().toISOString().slice(0,10)}.json`;
+            const blob = new Blob([jsonStr], { type: 'application/json' });
+
+            // Podpora pro mobilní nabídku sdílení (iOS Safari / Android Chrome)
+            if (navigator.canShare && navigator.canShare({ files: [new File([blob], fileName, { type: 'application/json' })] })) {
+                try {
+                    const file = new File([blob], fileName, { type: 'application/json' });
+                    await navigator.share({
+                        title: 'Záloha Pirátské hry',
+                        text: 'Soubor se zálohou postupu v Pirátské hře.',
+                        files: [file]
+                    });
+                    return;
+                } catch (err) {
+                    if (err.name !== 'AbortError') console.warn('Sdílení selhalo, použije se záložní stažení:', err);
+                }
+            }
+
+            // Standardní stažení pro počítače a starší prohlížeče
+            const url = URL.createObjectURL(blob);
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.href = url;
+            downloadAnchor.download = fileName;
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+        }
+
+        function importGameState(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const imported = JSON.parse(e.target.result);
+                    if (imported && typeof imported.currentCell === 'number') {
+                        currentCell = imported.currentCell;
+                        carriedTokens = imported.carriedTokens || 0;
+                        historyLog = Array.isArray(imported.historyLog) ? imported.historyLog : [];
+
+                        if (imported.captain && document.getElementById('captainInput')) {
+                            document.getElementById('captainInput').value = imported.captain;
+                        }
+                        if (imported.goal && document.getElementById('goalInput')) {
+                            document.getElementById('goalInput').value = imported.goal;
+                        }
+
+                        saveGameState();
+                        updateUI();
+                        updateHistoryUI();
+                        calculatePrediction();
+                        playVictorySound();
+                        triggerConfetti();
+                        alert("✅ Data byla úspěšně načtena ze zálohy!");
+                    } else {
+                        alert("⚠️ Neplatný formát souboru zálohy!");
+                    }
+                } catch (err) {
+                    alert("❌ Chyba při zpracování souboru zálohy: " + err.message);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function updateHistoryUI() {
+            const listEl = document.getElementById('historyList');
+            const countEl = document.getElementById('historyCount');
+            if (!listEl) return;
+
+            if (countEl) countEl.innerText = `(${historyLog.length} týdnů)`;
+
+            if (historyLog.length === 0) {
+                listEl.innerHTML = '<div style="color: #888; text-align: center; padding: 10px;">Zatím nebyly započítány žádné týdny.</div>';
+                return;
+            }
+
+            let html = '';
+            [...historyLog].reverse().forEach((entry) => {
+                html += `
+                    <div class="history-item">
+                        <div>
+                            <b>Týden ${entry.weekNum}:</b> ${entry.date}
+                            <span style="color:#666;">(+${entry.tokens} žetonů)</span>
+                        </div>
+                        <div style="font-weight:bold; color:#b45309;">
+                            +${entry.steps} pole (+${entry.amount} Kč) ➔ ${entry.cellAtEnd}. pole
+                        </div>
+                    </div>
+                `;
+            });
+            listEl.innerHTML = html;
+        }
+
+        function calculatePrediction() {
+            const predEl = document.getElementById('predictionText');
+            if (!predEl) return;
+
+            if (currentCell >= totalCells) {
+                predEl.innerHTML = '🏆 <b>Dosaženo cíle! Gratulujeme k pokladu!</b>';
+                return;
+            }
+
+            if (historyLog.length === 0) {
+                predEl.innerText = 'Zatím málo dat (započítejte alespoň 1 týden)';
+                return;
+            }
+
+            const totalStepsFromLog = historyLog.reduce((sum, h) => sum + h.steps, 0);
+            const avgStepsPerWeek = totalStepsFromLog / historyLog.length;
+
+            if (avgStepsPerWeek <= 0) {
+                predEl.innerText = 'Týdenní průměr je zatím 0 polí/týden.';
+                return;
+            }
+
+            const remainingCells = totalCells - currentCell;
+            const estimatedWeeks = Math.ceil(remainingCells / avgStepsPerWeek);
+
+            const estDate = new Date();
+            estDate.setDate(estDate.getDate() + (estimatedWeeks * 7));
+
+            const options = { day: 'numeric', month: 'long', year: 'numeric' };
+            const formattedDate = estDate.toLocaleDateString('cs-CZ', options);
+
+            predEl.innerHTML = `Průměrné tempo: <b>+${avgStepsPerWeek.toFixed(1)} polí/týden</b>.<br>Cílového 200. políčka dosáhnete za cca <b>${estimatedWeeks} týdnů (${formattedDate})</b>! 🚀`;
         }
 
         const gridContainer = document.getElementById('boardGrid');
@@ -573,6 +934,7 @@
         const stashMoney = document.getElementById('stashMoney');
 
         function getParentalBonusSteps(cellNum) {
+            if (cellNum === 10) return 2;
             if (cellNum <= 60) return 3;
             if (cellNum <= 120) return 4;
             return 5;
@@ -597,9 +959,9 @@
                     cell.className = 'cell';
                     cell.id = `cell-${cellIndex}`;
 
-                    if (cellIndex % 20 === 0 && cellIndex < 200) {
+                    if ((cellIndex === 10 || cellIndex % 20 === 0) && cellIndex < 200) {
                         cell.classList.add('milestone');
-                        cell.setAttribute('title', `Truhla voleb na ${cellIndex}. políčku`);
+                        cell.setAttribute('title', `${cellIndex === 10 ? 'První malý bonus' : 'Truhla voleb'} na ${cellIndex}. políčku`);
                         cell.innerHTML = `<span>${cellIndex}</span><span class="milestone-icon">🎁</span>`;
                     } else if (cellIndex === 200) {
                         cell.classList.add('milestone-final');
@@ -634,7 +996,8 @@
             updateUI();
 
             if (triggerMilestoneCheck && currentCell > prevCell) {
-                for (let m = 20; m <= 200; m += 20) {
+                const milestones = [10, 20, 40, 60, 80, 100, 120, 140, 160, 180, 200];
+                for (let m of milestones) {
                     if (prevCell < m && currentCell >= m) {
                         openChestModal(m);
                         break;
@@ -645,6 +1008,7 @@
 
         function stepPawn(steps, triggerMilestoneCheck = true) {
             setCell(currentCell + steps, triggerMilestoneCheck);
+            playCoinSound();
         }
 
         function applyWeeklyTasks() {
@@ -665,6 +1029,17 @@
                 stepPawn(fullSteps);
             }
 
+            // Uložení historie
+            const todayStr = new Date().toLocaleDateString('cs-CZ', { day: 'numeric', month: 'numeric' });
+            historyLog.push({
+                weekNum: historyLog.length + 1,
+                date: todayStr,
+                tokens: weeklyTokens,
+                steps: fullSteps,
+                amount: fullSteps * 100,
+                cellAtEnd: currentCell
+            });
+
             // Odškrtnutí
             document.getElementById('taskSport').checked = false;
             document.getElementById('taskVeggie').checked = false;
@@ -674,6 +1049,9 @@
             document.getElementById('taskJoker').checked = false;
 
             updateStashUI();
+            updateHistoryUI();
+            calculatePrediction();
+            saveGameState();
 
             let message = `Týden uzavřen!\n\nZískat z úkolů: ${weeklyTokens} žetonu.\nCelkem k dispozici: ${totalAvailable} žetonu.\n\n`;
             if (fullSteps > 0) {
@@ -738,20 +1116,29 @@
             const bonusSteps = getParentalBonusSteps(cellNum);
             const bonusMoney = bonusSteps * 100;
 
-            document.getElementById('modalTitle').innerText = `🎁 Truhla Voleb na ${cellNum}. políčku! (${savedAmount.toLocaleString('cs-CZ')} Kč)`;
-            
-            if (cellNum === 200) {
+            playChestSound();
+            triggerConfetti();
+
+            if (cellNum === 10) {
+                document.getElementById('modalTitle').innerText = `🎁 PRVNÍ MALÝ BONUS na 10. políčku! (1 000 Kč)`;
+                document.getElementById('modalBody').innerText = `Skvělý start! Ušel/a jsi první část cesty (1 000 Kč). Rodiče ti nabízí tvůj první malý bonus za vytrvalost! Můžeš si vybrat malou odměnu hned, nebo ji odmítnout a získat extra posun o +2 políčka (+200 Kč) k hlavnímu cíli (${goal})!`;
+                document.getElementById('btnRefuseReward').style.display = 'block';
+                document.getElementById('btnTakeReward').innerText = '🍦 Vybrat si malou sladkou / drobnou odměnu hned';
+                document.getElementById('btnRefuseReward').innerText = `⚔️ Odolat pokušení (+2 políčka / +200 Kč vklad rodičů!) ▶`;
+                document.getElementById('modalBonusBadge').innerText = `⚡ PRVNÍ MOTIVAČNÍ BONUS: +2 POLÍČKA (+200 Kč) PŘI ODOLÁNÍ ⚡`;
+            } else if (cellNum === 200) {
+                playVictorySound();
                 document.getElementById('modalTitle').innerText = `🏆 VELKÝ FINÁLOVÝ POKLAD! (20 000 Kč)`;
                 document.getElementById('modalBody').innerText = `GRATULUJEME! Dosáhl jsi 200. políčka a získal jsi svůj cílový poklad: ${goal}!`;
                 document.getElementById('btnRefuseReward').style.display = 'none';
                 document.getElementById('btnTakeReward').innerText = '🎉 Oslavit a vyzvednout Velký Poklad!';
                 document.getElementById('modalBonusBadge').innerText = '🏆 CÍL JE DOSAŽEN!';
             } else {
+                document.getElementById('modalTitle').innerText = `🎁 Truhla Voleb na ${cellNum}. políčku! (${savedAmount.toLocaleString('cs-CZ')} Kč)`;
                 document.getElementById('btnRefuseReward').style.display = 'block';
                 document.getElementById('btnTakeReward').innerText = '🍦 Vybrat si menší odměnu hned (kino / zážitek / hračka)';
                 document.getElementById('btnRefuseReward').innerText = `⚔️ Odolat pokušení (+${bonusSteps} políčka / +${bonusMoney} Kč vklad rodičů do pokladu!) ▶`;
                 document.getElementById('modalBonusBadge').innerText = `⚡ RODIČOVSKÁ INJEKCE: +${bonusSteps} POLÍČKA (+${bonusMoney} Kč) PŘI ODOLÁNÍ ⚡`;
-                
                 document.getElementById('modalBody').innerText = `Skvělá práce! Dosáhl jsi ${cellNum}. políčka. Nyní si můžeš vybrat okamžitou odměnu, NEBO odolat pokušení a nechat rodiče vložit hodnotu odměny (+${bonusMoney} Kč / +${bonusSteps} políčka) přímo do tvého spoření k hlavnímu cíli (${goal})!`;
             }
 
@@ -814,11 +1201,15 @@
         function resetGame() {
             if (confirm('Opravdu chcete vynulovat postup ve hře?')) {
                 carriedTokens = 0;
+                historyLog = [];
                 try {
                     localStorage.removeItem('pirate_currentCell');
                     localStorage.removeItem('pirate_carriedTokens');
+                    localStorage.removeItem('pirate_historyLog');
                 } catch (e) {}
                 setCell(0);
+                updateHistoryUI();
+                calculatePrediction();
             }
         }
 
@@ -826,6 +1217,8 @@
         loadGameState();
         generateGrid();
         updateLiveTaskSummary();
+        updateHistoryUI();
+        calculatePrediction();
     </script>
 </body>
 </html>
